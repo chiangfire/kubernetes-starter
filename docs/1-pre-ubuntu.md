@@ -116,7 +116,7 @@ kubernetes的安装有几种方式，不管是kube-admin还是社区贡献的部
 ```bash
 #到home目录下载项目
 $ cd
-$ git clone https://github.com/liuyi01/kubernetes-starter.git
+$ git clone https://github.com/chiangfire/kubernetes-starter.git
 #看看git内容
 $ cd ~/kubernetes-starter && ls
 ```
