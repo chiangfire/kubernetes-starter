@@ -281,6 +281,7 @@ calico作为kubernets的CNI插件的配置
 
 
 ## 8. 小试牛刀
+```
 journalctl -f                  --查看当前系统日志
 kubectl version                -- 查看kubernetes的一些版本信息
 kubectl get --help             -- 获取 get 命令的使用方法
@@ -349,7 +350,7 @@ kubectl get pods                   -- 查看刚刚创建的pod是否成功
 kubectl create -f 'yaml文件名称'    -- 使用配置文件创建 '部署'
 kubectl get deployments             -- 查看刚刚创建的 '部署' 是否成功
 kubectl get pods -l app=nginx       -- 获取 '部署' 里 labels 里面 app=nginx的pod  <service是根据labels 里面 app相同名称，来做负载均衡>
-    
+```    
 
 ## 9. 为集群增加service功能 - kube-proxy（工作节点）
 #### 9.1 简介
