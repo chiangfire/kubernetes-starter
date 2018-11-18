@@ -126,7 +126,7 @@ kubectl -h
 #到home目录下载项目
 $ yum -y install git
 $ cd
-$ git clone https://github.com/liuyi01/kubernetes-starter.git
+$ git clone git@github.com:chiangfire/kubernetes-starter.git
 #看看git内容
 $ cd ~/kubernetes-starter && ls
 ```
