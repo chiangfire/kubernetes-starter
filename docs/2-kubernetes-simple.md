@@ -134,6 +134,11 @@ $ docker ps
 CONTAINER ID   IMAGE                COMMAND        CREATED ...
 4d371b58928b   calico/node:v2.6.2   "start_runit"  3 hours ago...
 ```
+**安装 calicoctl**
+```bash
+wget -O /usr/local/bin/calicoctl https://github.com/projectcalico/calicoctl/releases/download/v3.3.0/calicoctl   -- 下载安装包
+chmod +x /usr/local/bin/calicoctl                                                                                -- 安装
+```
 **查看节点运行情况**
 ```bash
 $ calicoctl node status
@@ -152,7 +157,7 @@ No IPv6 peers found.
 $ netstat -natp|grep ESTABLISHED|grep 179
 tcp        0      0 192.168.1.102:60959     192.168.1.103:179       ESTABLISHED 29680/bird
 ```
-**查看集群ippool情况**
+**查看集群ippool情况  --因为我们使用k8s去控制所以可以不配置 ipPool 网络资源，如果要配置 calicoctl "ipPool" 网络资源再查查**
 ```bash
 $ calicoctl get ipPool -o yaml
 - apiVersion: v1
@@ -194,6 +199,8 @@ kubectl config set-cluster kubernetes  --server=http://192.168.1.102:8080
 kubectl config set-context kubernetes --cluster=kubernetes
 #选择默认的上下文
 kubectl config use-context kubernetes
+#测试kubectl，获取所有的pod
+kubectl get pods          --还没有开始使用应该是没有pod的
 ```
 > 通过上面的设置最终目的是生成了一个配置文件：~/.kube/config，当然你也可以手写或复制一个文件放在那，就不需要上面的命令了。
 
@@ -274,9 +281,75 @@ calico作为kubernets的CNI插件的配置
 
 
 ## 8. 小试牛刀
-到这里最基础的kubernetes集群就可以工作了。下面我们就来试试看怎么去操作，控制它。
-我们从最简单的命令开始，尝试一下kubernetes官方的入门教学：playground的内容。了解如何创建pod，deployments，以及查看他们的信息，深入理解他们的关系。
-具体内容请看慕课网的视频吧：  [《Docker+k8s微服务容器化实践》][1]
+journalctl -f                  --查看当前系统日志
+kubectl version                -- 查看kubernetes的一些版本信息
+kubectl get --help             -- 获取 get 命令的使用方法
+kubectl get nodes              -- 获取所有的节点信息
+kubectl run '部署名称' --image='容器名称' --port=9090   --创建一个部署<默认一个pod>
+    kubectl run kubernetes-bootcamp --image=jocatalin/kubernetes-bootcamp:v2 --port=9090   -- 测试创建一个部署
+kubectl get deployments        -- 获取所有的部署，数据如下：
+      部署名称                                           期望 pod数             当前pod数           最新pod数             可用pod数     
+     |                      |             |             |            |
+	NAME                  DESIRED       CURRENT      UP-TO-DATE   AVAILABLE   AGE
+	kubernetes-bootcamp   1             1            1            1           3m
+	
+kubectl get pods                               -- 获取所有的 pod	信息
+kubectl get pods -o wide                       -- 获取所有的 pod 显示更多的pod信息
+kubectl get pods -l app=nginx                  -- 获取 '部署' 里 labels 里面 app=nginx的pod <service是根据labels 里面 app相同名称，来做负载均衡>
+
+kubectl delete deployments '部署名字'          -- 删除一个部署
+kubectl describe deployment '部署名称'         -- 描述一个部署的详细信息
+kubectl describe pods 'pod名称'                -- 描述一个 pod 的详细信息<名字可以使用：kubectl get pods 命令查看>
+kubectl porxy                                  -- 在当前机器上起一个 8001 的代理
+    curl http://localhost:8001/api/v1/proxy/namespaces/default/pods/pod名称/    --重启一个窗口，执行一条命令来测试pod是否启动
+
+kubectl scale deployments '部署名称' --replicas=4  -- 为某个部署扩缩容数量
+kubectl set image deployment '部署名称' '容器名称'='新的容器名称'  -- 修改某个部署的镜像
+    kubectl set image deployment kubernetes-bootcamp kubernetes-bootcamp=jocatalin/kubernetes-bootcamp:v2  -- 测试修改命令
+    kubectl rollout status deployment '部署名称'                                                           -- 查看上面的是否修改成功
+
+kubectl rollout undo deployment '部署名称'   -- 回滚上一步对某个部署的操作  <比如上面我更新了部署的镜像>    
+
+使用配置文件的方式创建 pod，需要创建配置文件，具体如下：
+    nginx-pod.yaml -- 文件名，内容如下
+    apiVersion: v1
+    kind: Pod                   #类型
+    metadata:                   #源数据
+      name: nginx
+    spec:                       #说明
+      containers:               #容器
+        - name: nginx           #容器名称
+          image: nginx:1.7.9    #镜像
+          ports:
+            - containerPort: 80  #容器端口
+
+kubectl create -f 'yaml文件名称'    -- 使用配置文件创建 pod
+kubectl get pods                   -- 查看刚刚创建的pod是否成功
+
+
+使用配置文件的方式创建 '部署'，需要创建配置文件，具体如下：
+  nginx-deployment.yaml -- 文件名，内容如下
+  apiVersion: apps/v1beta1
+  kind: Deployment                 #类型
+  metadata:                        #源数据
+    name: nginx-deployment
+  spec:
+    replicas: 3                    #副本数<就是部署时有几个实列，启动几个服务>
+    template:                      #对什么进行副本，根据什么区创建副本
+      metadata: 
+        labels:
+          app: nginx
+      spec:                        #说明
+        containers:                #容器
+          - name: nginx            #容器名称
+            image: nginx:1.7.9     #镜像
+            ports:
+              - containerPort: 80  #容器端口
+                 
+kubectl create -f 'yaml文件名称'    -- 使用配置文件创建 '部署'
+kubectl get deployments             -- 查看刚刚创建的 '部署' 是否成功
+kubectl get pods -l app=nginx       -- 获取 '部署' 里 labels 里面 app=nginx的pod  <service是根据labels 里面 app相同名称，来做负载均衡>
+    
 
 ## 9. 为集群增加service功能 - kube-proxy（工作节点）
 #### 9.1 简介
