@@ -123,7 +123,7 @@ kubectl -h
 上一步我们下载了kubernetes各个组件的二进制文件，这些可执行文件的运行也是需要添加很多参数的，包括有的还会依赖一些配置文件。现在我们就把运行它们需要的参数和配置文件都准备好。
 #### 5.1 下载配置文件
 ```bash
-#到home目录下载项目
+#到home目录下载项目(git最好只装一台)
 $ yum -y install git
 $ cd
 $ git clone https://github.com/chiangfire/kubernetes-starter.git

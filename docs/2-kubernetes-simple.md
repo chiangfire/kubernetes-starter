@@ -134,7 +134,7 @@ $ docker ps
 CONTAINER ID   IMAGE                COMMAND        CREATED ...
 4d371b58928b   calico/node:v2.6.2   "start_runit"  3 hours ago...
 ```
-**安装 calicoctl**
+**安装 calicoctl(可以不安装)**
 ```bash
 wget -O /usr/local/bin/calicoctl https://github.com/projectcalico/calicoctl/releases/download/v3.3.0/calicoctl   -- 下载安装包
 chmod +x /usr/local/bin/calicoctl                                                                                -- 安装
@@ -157,7 +157,7 @@ No IPv6 peers found.
 $ netstat -natp|grep ESTABLISHED|grep 179
 tcp        0      0 192.168.1.102:60959     192.168.1.103:179       ESTABLISHED 29680/bird
 ```
-**查看集群ippool情况  --因为我们使用k8s去控制所以可以不配置 ipPool 网络资源，如果要配置 calicoctl "ipPool" 网络资源再查查**
+**查看集群ippool情况  （因为我们使用k8s去控制所以可以不配置 ipPool 网络资源，如果要配置 calicoctl "ipPool" 网络资源再查查）**
 ```bash
 $ calicoctl get ipPool -o yaml
 - apiVersion: v1
@@ -199,8 +199,8 @@ kubectl config set-cluster kubernetes  --server=http://192.168.1.102:8080
 kubectl config set-context kubernetes --cluster=kubernetes
 #选择默认的上下文
 kubectl config use-context kubernetes
-#测试kubectl，获取所有的pod
-kubectl get pods          --还没有开始使用应该是没有pod的
+#测试kubectl，获取所有的pod（还没有开始使用应该是没有pod的）
+kubectl get pods
 ```
 > 通过上面的设置最终目的是生成了一个配置文件：~/.kube/config，当然你也可以手写或复制一个文件放在那，就不需要上面的命令了。
 
@@ -301,7 +301,7 @@ kubectl get pods -l app=nginx                  -- 获取 '部署' 里 labels 里
 kubectl delete deployments '部署名字'          -- 删除一个部署
 kubectl describe deployment '部署名称'         -- 描述一个部署的详细信息
 kubectl describe pods 'pod名称'                -- 描述一个 pod 的详细信息<名字可以使用：kubectl get pods 命令查看>
-kubectl porxy                                  -- 在当前机器上起一个 8001 的代理
+kubectl proxy                                  -- 在当前机器上起一个 8001 的代理
     curl http://localhost:8001/api/v1/proxy/namespaces/default/pods/pod名称/    --重启一个窗口，执行一条命令来测试pod是否启动
 
 kubectl scale deployments '部署名称' --replicas=4  -- 为某个部署扩缩容数量
