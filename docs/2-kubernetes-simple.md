@@ -361,9 +361,9 @@ kubectl get pods -l app=nginx       -- 获取 '部署' 里 labels 里面 app=ngi
 #确保工作目录存在
 $ mkdir -p /var/lib/kube-proxy
 #复制kube-proxy服务配置文件
-$ cp target/worker-node/kube-proxy.service /lib/systemd/system/
+$ cp ./target/worker-node/kube-proxy.service /lib/systemd/system/
 #复制kube-proxy依赖的配置文件
-$ cp target/worker-node/kube-proxy.kubeconfig /etc/kubernetes/
+$ cp ./target/worker-node/kube-proxy.kubeconfig /etc/kubernetes/
 
 $ systemctl enable kube-proxy.service
 $ service kube-proxy start
@@ -388,8 +388,45 @@ ExecStart=/home/michael/bin/kube-proxy \\
 配置了kube-proxy如何访问api-server，内容与kubelet雷同，不再赘述。
 
 #### 9.4 操练service
-刚才我们在基础集群上演示了pod，deployments。下面就在刚才的基础上增加点service元素。具体内容见[《Docker+k8s微服务容器化实践》][1]。
+```bash
+kubectl get services                     -- 在装有apiServer节点执行查看当前服务
+kubectl describe service '服务名字'       -- 查看服务详细信息（服务名称可通过 kubectl get service 获取）
 
+    "暴露" 一个 "部署"   部署的名称      "暴露类型" "目标的端口（容器的端口）" "服务的端口"（内网服务的端口，和 CLUSTER-IP（看下面）绑定的端口，仅限内网使用）
+       |       |         |           |              |                |
+kubectl expose deploy nginx-deployment --type="NodePort" --target-port=80 --port=80     #暴露（创建）服务（Service），随机生成端口
+
+kubectl get services                     -- 验证上面的命令是否创建service成功，显示数据如下
+NAME               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes         ClusterIP   10.68.0.1       <none>        443/TCP        1d
+nginx-deployment   NodePort    10.68.193.138   <none>        80:38661/TCP   9s
+
+第二条数据看 "PORT(S)"项，从80（内网服务的端口）映射到了38661（随机生成的）端口，可使用如下命令查看端口监听情况：
+netstat -ntlp|grep 38661    
+-- 如果当前机器起了 kube-proxy 是会有监听的，而这个端口实际是kube-proxy在节点上启动的一个端口，
+-- 可通过这个这台机器的ip+这个端口（38661）来访问我们 的服务（前提是该机器跑有 kube-proxy）
+-- 到服务（service）里面的容器中使用 CLUSTER-IP（看上面）+ （内网服务的端口）是可以访问的
+-- 在节点内部使用pod的ip+容器的端口是可以访问的，或者使用   CLUSTER-IP（看上面）+ （内网服务的端口）也是可以访问的
+
+
+使用配置文件的方式创建 service,创建文件 nginx-service.yaml 内容如下：
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  ports: 
+  - port: 80            #服务的端口（内网服务的端口，和 CLUSTER-IP（看下面）绑定的端口，仅限内网使用
+    targetPort: 80      #目标的端口（容器的端口
+    nodePort: 20000     #node节点绑定的端口，就是机器对外提供服务的端口
+  selector:
+    app: nginx          #选择给谁提供服务，这里选的是 deployments（部署） 里 labels 下 app=nginx 的部署。（可以看上面我们创建了一个 deployments（部署）里面有 app:nginx）
+  type: NodePort
+  
+  
+kubectl create -f nginx-services.yaml   -- 创建 service
+kubectl get services                    -- 看看创建的 service 是否成功                            
+```
 
 ## 10. 为集群增加dns功能 - kube-dns（app）
 #### 10.1 简介
@@ -400,13 +437,27 @@ kube-dns.yaml文件基本与官方一致（除了镜像名不同外）。
 里面配置了多个组件，之间使用”---“分隔
 ```bash
 #到kubernetes-starter目录执行命令
-$ kubectl create -f target/services/kube-dns.yaml
+$ kubectl create -f ./target/services/kube-dns.yaml         -- 这个是官方提供创建 dns 服务的配置（里面有注释，可以看看）
+$ kubectl -n kube-system get services                       -- 查看kube-dns 服务是否创建成功，-n 是制定命名空间，kube-system 是 kubernetes 系统内部的命名空间
+$ kubectl -n kube-system get deployments                    -- 查看kube-dns 部署是否创建成功
+$ kubectl -n kube-system get pods -o wide                   -- 查看kube-dns 的 pod是否运行
+$ docker ps|grep dns                                        -- 到 dns 运行的pod上执行，查看运行了那些容器
+     一般会运行如下几个容器：
+      k8s-dns-sidecar：用于监控其他几个容器的健康状态
+      k8s-dns-dnsmasq：用于 dns 缓存，来提升效率
+      k8s-dns-kube-dns：真正提供 dns 服务的容器
+      pause-amd64：pod 容器
 ```
 #### 10.3 重点配置说明
 请直接参考配置文件中的注释。
 
-#### 10.4 通过dns访问服务
-这了主要演示增加kube-dns后，通过名字访问服务的原理和具体过程。演示启动dns服务和未启动dns服务的通过名字访问情况差别。
-具体内容请看[《Docker+k8s微服务容器化实践》][1]吧~
+#### 10.4 通过dns访问服务，到主节点上执行如下操作
+```bash
+kubectl get services                                         -- 查看所有的 services
+kubectl get pods -o wide                                     -- 找一个装有 curl 的容器
+docker exec -it '容器的ID（docker ps 查看）'                  -- 进入容器内部执行如下命令：
+    curl '服务的名称（kubectl get services）':内网端口                      -- 验证使用名称是否可以访问服务
+    cat /etc/resolv.conf                                     -- 查看当前容器的 dns 配置
 
-[1]: https://coding.imooc.com/class/198.html
+kubectl delete -f ./target/services/kube-dns.yaml            -- 删除 dns 服务（不要做这一步）
+```
