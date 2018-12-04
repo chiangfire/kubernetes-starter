@@ -17,5 +17,5 @@
   [1-1]: https://github.com/chiangfire/kubernetes-starter/blob/master/docs/1-pre-centos.md
   [1-2]: https://github.com/chiangfire/kubernetes-starter/blob/master/docs/1-pre-ubuntu.md
   [2]: https://github.com/chiangfire/kubernetes-starter/blob/master/docs/2-kubernetes-simple.md
-  [3]: https://github.com/liuyi01/kubernetes-starter/tree/master/docs/3-kubernetes-with-ca.md
-  [4]: https://github.com/liuyi01/kubernetes-starter/tree/master/docs/4-microservice-deploy.md
+  [3]: https://github.com/chiangfire/kubernetes-starter/blob/master/docs/3-kubernetes-with-ca.md
+  [4]: https://github.com/chiangfire/kubernetes-starter/blob/master/docs/4-microservice-deploy.md
