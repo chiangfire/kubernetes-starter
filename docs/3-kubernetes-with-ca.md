@@ -64,13 +64,13 @@ $ service kube-controller-manager stop
 $ service kube-apiserver stop
 $ service etcd stop && rm -fr /var/lib/etcd/*
 #所有节点（查看是否删除干净）
-$netstat -ntlp
+$ netstat -ntlp
 ```
 #### 3.2 生成配置（所有节点）
 跟基础环境搭建一样，我们需要生成kubernetes-with-ca的所有相关配置文件
 ```bash
 $ cd ~/kubernetes-starter
-#按照配置文件的提示编辑好配置
+#按照配置文件的提示编辑好配置（将 ETCD 改为 https，其它应该不用改）
 $ vi config.properties
 #生成配置
 $ ./gen-config.sh with-ca
@@ -79,7 +79,11 @@ $ ./gen-config.sh with-ca
 cfssl是非常好用的CA工具，我们用它来生成证书和秘钥文件  
 安装过程比较简单，如下：
 ```bash
-#下载
+#查看是否安装了 wget
+$ yum list installed wget | grep wget
+#安装 wget
+$ yum -y install wget
+#下载（如果报 "--show-progress" 等参数不可用，直接下载那两个文件即可）
 $ wget -q --show-progress --https-only --timestamping \
   https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 \
   https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
@@ -97,8 +101,8 @@ $ cfssl version
 #所有证书相关的东西都放在这
 $ mkdir -p /etc/kubernetes/ca
 #准备生成证书的配置文件
-$ cp ~/kubernetes-starter/target/ca/ca-config.json /etc/kubernetes/ca
-$ cp ~/kubernetes-starter/target/ca/ca-csr.json /etc/kubernetes/ca
+$ cp ./kubernetes-starter/target/ca/ca-config.json /etc/kubernetes/ca
+$ cp ./kubernetes-starter/target/ca/ca-csr.json /etc/kubernetes/ca
 #生成证书和秘钥
 $ cd /etc/kubernetes/ca
 $ cfssl gencert -initca ca-csr.json | cfssljson -bare ca
@@ -115,7 +119,7 @@ etcd节点需要提供给其他服务访问，就要验证其他服务的身份�
 #etcd证书放在这
 $ mkdir -p /etc/kubernetes/ca/etcd
 #准备etcd证书配置
-$ cp ~/kubernetes-starter/target/ca/etcd/etcd-csr.json /etc/kubernetes/ca/etcd/
+$ cp ./kubernetes-starter/target/ca/etcd/etcd-csr.json /etc/kubernetes/ca/etcd/
 $ cd /etc/kubernetes/ca/etcd/
 #使用根证书(ca.pem)签发etcd证书
 $ cfssl gencert \
@@ -131,17 +135,22 @@ etcd.csr  etcd-csr.json  etcd-key.pem  etcd.pem
 建议大家先比较一下增加认证的etcd配置与原有配置的区别，做到心中有数。
 可以使用命令比较：
 ```bash
-$ cd ~/kubernetes-starter/
+$ cd ./kubernetes-starter/
+#centos使用
+$ diff kubernetes-simple/master-node/etcd.service kubernetes-with-ca/master-node/etcd.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/master-node/etcd.service kubernetes-with-ca/master-node/etcd.service
 ```
 **更新etcd服务：**
 ```bash
-$ cp ~/kubernetes-starter/target/master-node/etcd.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/master-node/etcd.service /lib/systemd/system/
 $ systemctl daemon-reload
 $ service etcd start
+# 查看服务日志，看是否有错误信息，确保服务正常
+$ journalctl -f -u etcd.service
 #验证etcd服务（endpoints自行替换）
 $ ETCDCTL_API=3 etcdctl \
-  --endpoints=https://192.168.1.102:2379  \
+  --endpoints=https://192.168.78.128:2379  \
   --cacert=/etc/kubernetes/ca/ca.pem \
   --cert=/etc/kubernetes/ca/etcd/etcd.pem \
   --key=/etc/kubernetes/ca/etcd/etcd-key.pem \
@@ -154,7 +163,7 @@ $ ETCDCTL_API=3 etcdctl \
 #api-server证书放在这，api-server是核心，文件夹叫kubernetes吧，如果想叫apiserver也可以，不过相关的地方都需要修改哦
 $ mkdir -p /etc/kubernetes/ca/kubernetes
 #准备apiserver证书配置
-$ cp ~/kubernetes-starter/target/ca/kubernetes/kubernetes-csr.json /etc/kubernetes/ca/kubernetes/
+$ cp ./kubernetes-starter/target/ca/kubernetes/kubernetes-csr.json /etc/kubernetes/ca/kubernetes/
 $ cd /etc/kubernetes/ca/kubernetes/
 #使用根证书(ca.pem)签发kubernetes证书
 $ cfssl gencert \
@@ -167,9 +176,12 @@ $ ls
 kubernetes.csr  kubernetes-csr.json  kubernetes-key.pem  kubernetes.pem
 ```
 #### 5.2 改造api-server服务
-**查看diff**
+**比较查看改造前和改造后配置文件的差异（diff）**
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/master-node/kube-apiserver.service kubernetes-with-ca/master-node/kube-apiserver.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/master-node/kube-apiserver.service kubernetes-with-ca/master-node/kube-apiserver.service
 ```
 **生成token认证文件**
