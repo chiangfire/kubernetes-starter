@@ -43,6 +43,7 @@ AdmissionControl - 准入控制本质上为一段准入代码，在对kubernetes
 ## 3. 环境准备
 #### 3.1 停止原有kubernetes相关服务
 开始之前我们要先把基础版本的集群停掉，包括service，deployments，pods以及运行的所有kubernetes组件
+注：kubernetes 服务不需要删除它是 ApiServer自动创建的。
 ```bash
 #删除services
 $ kubectl delete services nginx-service
@@ -62,6 +63,8 @@ $ service kube-scheduler stop
 $ service kube-controller-manager stop
 $ service kube-apiserver stop
 $ service etcd stop && rm -fr /var/lib/etcd/*
+#所有节点（查看是否删除干净）
+$netstat -ntlp
 ```
 #### 3.2 生成配置（所有节点）
 跟基础环境搭建一样，我们需要生成kubernetes-with-ca的所有相关配置文件
