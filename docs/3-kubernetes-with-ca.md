@@ -537,10 +537,9 @@ $ vimdiff kubernetes-simple/services/kube-dns.yaml kubernetes-with-ca/services/k
 ```bash
 $ kubectl create -f ./kubernetes-starter/target/services/kube-dns.yaml
 #看看启动是否成功
-$ kubectl -n kube-system get pods
+$ kubectl -n kube-system get pods -o wide                   -- 查看kube-dns 的 pod是否运行
 $ kubectl -n kube-system get services                       -- 查看kube-dns 服务是否创建成功，-n 是制定命名空间，kube-system 是 kubernetes 系统内部的命名空间
 $ kubectl -n kube-system get deployments                    -- 查看kube-dns 部署是否创建成功
-$ kubectl -n kube-system get pods -o wide                   -- 查看kube-dns 的 pod是否运行
 $ docker ps|grep dns                                        -- 到 dns 运行的pod上执行，查看运行了那些容器
      一般会运行如下几个容器：
       k8s-dns-sidecar：用于监控其他几个容器的健康状态
