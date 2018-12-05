@@ -428,7 +428,7 @@ kubectl create -f nginx-services.yaml   -- 创建 service
 kubectl get services                    -- 看看创建的 service 是否成功                            
 ```
 
-## 10. 为集群增加dns功能 - kube-dns（app）
+## 10. 为集群增加dns功能 - kube-dns（app<和普通应用差不不多>）
 #### 10.1 简介
 kube-dns为Kubernetes集群提供命名服务，主要用来解析集群服务名和Pod的hostname。目的是让pod可以通过名字访问到集群内服务。它通过添加A记录的方式实现名字和service的解析。普通的service会解析到service-ip。headless service会解析到pod列表。
 #### 10.2 部署

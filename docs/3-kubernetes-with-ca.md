@@ -188,14 +188,14 @@ $ vimdiff kubernetes-simple/master-node/kube-apiserver.service kubernetes-with-c
 ```bash
 #生成随机token
 $ head -c 16 /dev/urandom | od -An -t x | tr -d ' '
-8afdf3c4eb7c74018452423c29433609
+c5bea714f1c6c6e8175787b0224b739a
 
 #按照固定格式写入token.csv，注意替换token内容
-$ echo "8afdf3c4eb7c74018452423c29433609,kubelet-bootstrap,10001,\"system:kubelet-bootstrap\"" > /etc/kubernetes/ca/kubernetes/token.csv
+$ echo "c5bea714f1c6c6e8175787b0224b739a,kubelet-bootstrap,10001,\"system:kubelet-bootstrap\"" > /etc/kubernetes/ca/kubernetes/token.csv
 ```
 **更新api-server服务**
 ```bash
-$ cp ~/kubernetes-starter/target/master-node/kube-apiserver.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/master-node/kube-apiserver.service /lib/systemd/system/
 $ systemctl daemon-reload
 $ service kube-apiserver start
 
@@ -208,12 +208,15 @@ controller-manager一般与api-server在同一台机器上，所以可以使用�
 #### 6.1 改造controller-manager服务
 **查看diff**
 ```bash
-$ cd ~/kubernetes-starter/
+$ cd ./kubernetes-starter/
+#centos使用
+$ diff kubernetes-simple/master-node/kube-controller-manager.service kubernetes-with-ca/master-node/kube-controller-manager.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/master-node/kube-controller-manager.service kubernetes-with-ca/master-node/kube-controller-manager.service
 ```
 **更新controller-manager服务**
 ```bash
-$ cp ~/kubernetes-starter/target/master-node/kube-controller-manager.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/master-node/kube-controller-manager.service /lib/systemd/system/
 $ systemctl daemon-reload
 $ service kube-controller-manager start
 
@@ -227,7 +230,10 @@ scheduler一般与apiserver在同一台机器上，所以可以使用非安全�
 **查看diff**
 比较会发现两个文件并没有区别，不需要改造
 ```bash
-$ cd ~/kubernetes-starter/
+$ cd ./kubernetes-starter/
+#centos使用
+$ diff kubernetes-simple/master-node/kube-scheduler.service kubernetes-with-ca/master-node/kube-scheduler.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/master-node/kube-scheduler.service kubernetes-with-ca/master-node/kube-scheduler.service
 ```
 **启动服务**
@@ -237,13 +243,23 @@ $ service kube-scheduler start
 $ journalctl -f -u kube-scheduler
 ```
 ## 8. 改造kubectl
-
-#### 8.1 准备证书
+#### 8.0 先测试
+#看看会不会报错
+$ kubectl get nodes
+#到根目录
+$ cd
+#查看kube配置 server 的监听地址是不是和 ApiServer配置的一致（ApiSerevr配置的很有可能是127.0.0.1）
+$ more .kube/config
+#如果不一致，修改
+$ vi .kube/config
+#再看看会不会报错
+$ kubectl get nodes
+#### 8.1 准备证书（如果是在主节点上可以不改造，但最好还是改造一下）
 ```bash
 #kubectl证书放在这，由于kubectl相当于系统管理员，我们使用admin命名
 $ mkdir -p /etc/kubernetes/ca/admin
 #准备admin证书配置 - kubectl只需客户端证书，因此证书请求中 hosts 字段可以为空
-$ cp ~/kubernetes-starter/target/ca/admin/admin-csr.json /etc/kubernetes/ca/admin/
+$ cp ./kubernetes-starter/target/ca/admin/admin-csr.json /etc/kubernetes/ca/admin/
 $ cd /etc/kubernetes/ca/admin/
 #使用根证书(ca.pem)签发admin证书
 $ cfssl gencert \
@@ -262,7 +278,7 @@ admin.csr  admin-csr.json  admin-key.pem  admin.pem
 $ kubectl config set-cluster kubernetes \
         --certificate-authority=/etc/kubernetes/ca/ca.pem \
         --embed-certs=true \
-        --server=https://192.168.1.102:6443
+        --server=https://192.168.78.128:6443
 #设置客户端认证参数，指定admin证书和秘钥
 $ kubectl config set-credentials admin \
         --client-certificate=/etc/kubernetes/ca/admin/admin.pem \
@@ -290,7 +306,7 @@ etcd-0               Healthy   {"health": "true"}
 
 
 ## 9. 改造calico-node
-#### 9.1 准备证书
+#### 9.1 准备证书（先在一个节点上生成，然后再拷贝证书）
 后续可以看到calico证书用在四个地方：
 * calico/node 这个docker 容器运行时访问 etcd 使用证书
 * cni 配置文件中，cni 插件需要访问 etcd 使用证书
@@ -300,7 +316,7 @@ etcd-0               Healthy   {"health": "true"}
 #calico证书放在这
 $ mkdir -p /etc/kubernetes/ca/calico
 #准备calico证书配置 - calico只需客户端证书，因此证书请求中 hosts 字段可以为空
-$ cp ~/kubernetes-starter/target/ca/calico/calico-csr.json /etc/kubernetes/ca/calico/
+$ cp ./kubernetes-starter/target/ca/calico/calico-csr.json /etc/kubernetes/ca/calico/
 $ cd /etc/kubernetes/ca/calico/
 #使用根证书(ca.pem)签发calico证书
 $ cfssl gencert \
@@ -316,21 +332,27 @@ calico.csr  calico-csr.json  calico-key.pem  calico.pem
 #### 9.2 改造calico服务
 **查看diff**
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/all-node/kube-calico.service kubernetes-with-ca/all-node/kube-calico.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/all-node/kube-calico.service kubernetes-with-ca/all-node/kube-calico.service
 ```
-> 通过diff会发现，calico多了几个认证相关的文件：  
-/etc/kubernetes/ca/ca.pem  
-/etc/kubernetes/ca/calico/calico.pem  
-/etc/kubernetes/ca/calico/calico-key.pem  
-由于calico服务是所有节点都需要启动的，大家需要把这几个文件拷贝到每台服务器上
-
-**更新calico服务**
+#通过diff会发现，calico多了几个认证相关的文件：  
+#/etc/kubernetes/ca/ca.pem  
+#/etc/kubernetes/ca/calico/calico.pem  
+#/etc/kubernetes/ca/calico/calico-key.pem  
+#（拷贝证书）由于calico服务是所有节点都需要启动的，大家需要把这几个文件拷贝到每台服务器上
+$ scp -r /etc/kubernetes/ca/ root@192.168.78.129:/etc/kubernetes/
+$ scp -r /etc/kubernetes/ca/ root@192.168.78.130:/etc/kubernetes/
+#上面注意拷贝后目录是否一致
+**更新calico服务(所有工作节点)**
 ```bash
-$ cp ~/kubernetes-starter/target/all-node/kube-calico.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/all-node/kube-calico.service /lib/systemd/system/
 $ systemctl daemon-reload
 $ service kube-calico start
-
+#检查日志
+$ journalctl -f -u kube-calico
 #验证calico（能看到其他节点的列表就对啦）
 $ calicoctl node status
 ```
@@ -342,12 +364,12 @@ $ calicoctl node status
 引导token的方式要求客户端向api-server发起请求时告诉他你的用户名和token，并且这个用户是具有一个特定的角色：system:node-bootstrapper，所以需要先将 bootstrap token 文件中的 kubelet-bootstrap 用户赋予这个特定角色，然后 kubelet 才有权限发起创建认证请求。
 **在主节点执行下面命令**
 ```bash
-#可以通过下面命令查询clusterrole列表
+#可以通过下面命令查询clusterrole（集群的角色）列表
 $ kubectl -n kube-system get clusterrole
 
 #可以回顾一下token文件的内容
 $ cat /etc/kubernetes/ca/kubernetes/token.csv
-8afdf3c4eb7c74018452423c29433609,kubelet-bootstrap,10001,"system:kubelet-bootstrap"
+c5bea714f1c6c6e8175787b0224b739a,kubelet-bootstrap,10001,"system:kubelet-bootstrap"
 
 #创建角色绑定（将用户kubelet-bootstrap与角色system:node-bootstrapper绑定）
 $ kubectl create clusterrolebinding kubelet-bootstrap \
@@ -360,11 +382,11 @@ $ kubectl create clusterrolebinding kubelet-bootstrap \
 $ kubectl config set-cluster kubernetes \
         --certificate-authority=/etc/kubernetes/ca/ca.pem \
         --embed-certs=true \
-        --server=https://192.168.1.102:6443 \
+        --server=https://192.168.78.128:6443 \
         --kubeconfig=bootstrap.kubeconfig
 #设置客户端认证参数(注意替换token)
 $ kubectl config set-credentials kubelet-bootstrap \
-        --token=8afdf3c4eb7c74018452423c29433609 \
+        --token=c5bea714f1c6c6e8175787b0224b739a \
         --kubeconfig=bootstrap.kubeconfig
 #设置上下文
 $ kubectl config set-context default \
@@ -379,28 +401,37 @@ $ mv bootstrap.kubeconfig /etc/kubernetes/
 #### 10.3 准备cni配置
 **查看diff**
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/worker-node/10-calico.conf kubernetes-with-ca/worker-node/10-calico.conf
+#ubuntu使用
 $ vimdiff kubernetes-simple/worker-node/10-calico.conf kubernetes-with-ca/worker-node/10-calico.conf
 ```
 **copy配置**
 ```bash
-$ cp ~/kubernetes-starter/target/worker-node/10-calico.conf /etc/cni/net.d/
+$ cp ./kubernetes-starter/target/worker-node/10-calico.conf /etc/cni/net.d/
 ```
 #### 10.4 改造kubelet服务
 **查看diff**
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/worker-node/kubelet.service kubernetes-with-ca/worker-node/kubelet.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/worker-node/kubelet.service kubernetes-with-ca/worker-node/kubelet.service
 ```
 
 **更新服务**
 ```bash
-$ cp ~/kubernetes-starter/target/worker-node/kubelet.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/worker-node/kubelet.service /lib/systemd/system/
 $ systemctl daemon-reload
 $ service kubelet start
 
 #启动kubelet之后到master节点允许worker加入(批准worker的tls证书请求)
 #--------*在主节点执行*---------
+#看看是不是有 Pending 状态的请求
+$ kubectl get csr
+#批准worker的tls证书请求
 $ kubectl get csr|grep 'Pending' | awk '{print $1}'| xargs kubectl certificate approve
 #-----------------------------
 
@@ -416,7 +447,7 @@ $ mkdir -p /etc/kubernetes/ca/kube-proxy
 
 #准备proxy证书配置 - proxy只需客户端证书，因此证书请求中 hosts 字段可以为空。
 #CN 指定该证书的 User 为 system:kube-proxy，预定义的 ClusterRoleBinding system:node-proxy 将User system:kube-proxy 与 Role system:node-proxier 绑定，授予了调用 kube-api-server proxy的相关 API 的权限
-$ cp ~/kubernetes-starter/target/ca/kube-proxy/kube-proxy-csr.json /etc/kubernetes/ca/kube-proxy/
+$ cp ./kubernetes-starter/target/ca/kube-proxy/kube-proxy-csr.json /etc/kubernetes/ca/kube-proxy/
 $ cd /etc/kubernetes/ca/kube-proxy/
 
 #使用根证书(ca.pem)签发calico证书
@@ -436,7 +467,7 @@ kube-proxy.csr  kube-proxy-csr.json  kube-proxy-key.pem  kube-proxy.pem
 $ kubectl config set-cluster kubernetes \
         --certificate-authority=/etc/kubernetes/ca/ca.pem \
         --embed-certs=true \
-        --server=https://192.168.1.102:6443 \
+        --server=https://192.168.78.128:6443 \
         --kubeconfig=kube-proxy.kubeconfig
 #置客户端认证参数
 $ kubectl config set-credentials kube-proxy \
@@ -458,7 +489,10 @@ $ mv kube-proxy.kubeconfig /etc/kubernetes/kube-proxy.kubeconfig
 #### 11.3 改造kube-proxy服务
 **查看diff**
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/worker-node/kube-proxy.service kubernetes-with-ca/worker-node/kube-proxy.service
+#ubuntu使用
 $ vimdiff kubernetes-simple/worker-node/kube-proxy.service kubernetes-with-ca/worker-node/kube-proxy.service
 ```
 > 经过diff你应该发现kube-proxy.service没有变化
@@ -466,11 +500,14 @@ $ vimdiff kubernetes-simple/worker-node/kube-proxy.service kubernetes-with-ca/wo
 **启动服务**
 ```bash
 #如果之前的配置没有了，可以重新复制一份过去
-$ cp ~/kubernetes-starter/target/worker-node/kube-proxy.service /lib/systemd/system/
+$ cp ./kubernetes-starter/target/worker-node/kube-proxy.service /lib/systemd/system/
 $ systemctl daemon-reload
 
 #安装依赖软件
+#ubuntu使用
 $ apt install conntrack
+#centos使用
+$ yum install conntrack
 
 #启动服务
 $ service kube-proxy start
@@ -488,16 +525,28 @@ kube-dns有些特别，因为它本身是运行在kubernetes集群中，以kuber
 #### 12.1 准备配置文件
 我们在官方的基础上添加的变量，生成适合我们集群的配置。直接copy就可以啦
 ```bash
-$ cd ~/kubernetes-starter
+$ cd ./kubernetes-starter
+#centos使用
+$ diff kubernetes-simple/services/kube-dns.yaml kubernetes-with-ca/services/kube-dns.yaml
+#ubuntu使用
 $ vimdiff kubernetes-simple/services/kube-dns.yaml kubernetes-with-ca/services/kube-dns.yaml
 ```
 > 大家可以看到diff只有一处，新的配置没有设定api-server。不访问api-server，它是怎么知道每个服务的cluster ip和pod的endpoints的呢？这就是因为kubernetes在启动每个服务service的时候会以环境变量的方式把所有服务的ip，端口等信息注入进来。
 
 #### 12.2 创建kube-dns
 ```bash
-$ kubectl create -f ~/kubernetes-starter/target/services/kube-dns.yaml
+$ kubectl create -f ./kubernetes-starter/target/services/kube-dns.yaml
 #看看启动是否成功
 $ kubectl -n kube-system get pods
+$ kubectl -n kube-system get services                       -- 查看kube-dns 服务是否创建成功，-n 是制定命名空间，kube-system 是 kubernetes 系统内部的命名空间
+$ kubectl -n kube-system get deployments                    -- 查看kube-dns 部署是否创建成功
+$ kubectl -n kube-system get pods -o wide                   -- 查看kube-dns 的 pod是否运行
+$ docker ps|grep dns                                        -- 到 dns 运行的pod上执行，查看运行了那些容器
+     一般会运行如下几个容器：
+      k8s-dns-sidecar：用于监控其他几个容器的健康状态
+      k8s-dns-dnsmasq：用于 dns 缓存，来提升效率
+      k8s-dns-kube-dns：真正提供 dns 服务的容器
+      pause-amd64：pod 容器
 ```
 
 ## 13. 再试牛刀
