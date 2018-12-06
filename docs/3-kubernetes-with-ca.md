@@ -550,14 +550,51 @@ $ docker ps|grep dns                                        -- 到 dns 运行的
 
 ## 13. 再试牛刀
 终于，安全版的kubernetes集群我们部署完成了。  
-下面我们使用新集群先温习一下之前学习过的命令，然后再认识一些新的命令，新的参数，新的功能。同样，具体内容请看[视频教程][3]吧~
-
-
-
+下面我们使用新集群先温习一下之前学习过的命令，然后再认识一些新的命令，新的参数，新的功能。
+```bash
+kubectl version                    #查看集群版本
+kubectl get nodes                  #查看所有节点
+kubectl get pods                   #查看所有pod
+#创建一个 deployments
+kubectl run kubernetes-bootcamp --image=jocatalin/kubernetes-bootcamp:v1 --port=8080
+kubectl get deployments            #查看 deployments 是否创建成功
+kubectl get pods                   #查看所有 pod
+kubectl logs 'pod的名称'           #查看 pod 的日志，如果想跟随日志，就在命令后面加一个   -f
+kubectl describe pods 'pod名称'    #查看 pod 详细信息
+kubectl exec -it 'pod名称' bash    #进入 pod 内部
+    #查看某个pod的挂载点文件目录（使用  kubectl describe pods 'pod名称' 可以看到这个目录）
+    cd /var/run/secrets/kubernetes.io/serviceaccount
+    exit                           #退出 pod
+#上面我们看的那个目录是和 serviceaccount 相关
+kubectl get serviceaccount         #查看serviceaccont，也可以也简写：kubectl get sa
+kubectl get serviceaccount -o yaml #查看 serviceaccount 详细信息，-0 表示输出格式    
+#执行上面命令我们会看到 yaml 文件里有个 secrets
+kubectl get secrets                #查看是不是又 scripts
+kubectl get secrets -o yaml        #查看 scripts 详细信息，-o 是输出格式
+```
+#ApiServer如果开启了serviveAccount 他会在default这个命名空间下创建一个默认的serviceaccount，
+#然后再每个pod启动的时候会把service里面的 scripts 已文件的形式挂载到每个pod里面，有了这些证书文件之后，
+#我们的pod就可以https的形式访问我们的ApiServer，也就是说可以让pod通过apiServer认证。
+```bash
+kubectl apply -f 'yaml文件'        #（建议创建都用 apply）创建pod或deployments或service（这个创建命令和create创建有区别，它会把每次的配置都保存起来，create只有把应用删除了才可以重新创建，apply的话是在现有的基础之上做修改）
+kubectl describe pods 'pod名称'    #查看pod的详细信息
+kubectl get pods 'pod名称' -o json #查看pod的详细信息，-o 是输出格式
+#我们可以将nginx容器的版本修改为1.13来测试 apply 命令是不是在现有的基础之上做修改的
+kubectl apply -f 'yaml文件'
+kubectl describe pods 'pod名称'    #查看pod的详细信息，主要查看nginx容器的版本是不是变成1.13了
+#修改pod容器的版本（这个已上面创建的nginx pod为列）
+kubectl set image pods 'pod名称' '容器的名称'=nginx:1.7.9
+#创建一个 service，先创建 deployments，因为 services是建立在deployments之上
+kubectl apply -f nginx-deployment.yaml
+kubectl apply -f nginx-services.yaml
+kubectl get service                #查看所有service
+#开启一个用于测试集群的容器 --rm=true就是退自动删除，--restart=Never重启方案，这里是不重起，--tty 开启一个终端，-i拿到输入
+kubectl run busybox --rm=true --image=busybox --restart=Never --tty -i
+    wget -q0- 'get service查看到的端口':80   #这里其实是测试在集群内是否可以访问上面创建的nginx这个service
+```
 
 
 
 [1]: https://www.zhihu.com/question/33645891/answer/57721969
 [2]: http://www.ruanyifeng.com/blog/2014/02/ssl_tls.html
-[3]: https://coding.imooc.com/class/198.html
 
