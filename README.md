@@ -34,6 +34,8 @@ docker images                                        --查看本地已经装载<
 
 docker run -it java java -version                    --docker run:执行容器，-it:打开命令终端，java:执行名叫java的镜像，java -version:打开命令终端后执行该命令
 
+docker run -it --entrypoint bash openjdk:7-jre        --已命令行的方式进入 openjdk 镜像
+
 docker run java env                                  --查看名叫 java 的 docker 镜像的环境变量
 
 docker run 后面追加-d=true或者-d                      --容器将会运行在后台模式。
