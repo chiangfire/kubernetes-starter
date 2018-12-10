@@ -1,5 +1,5 @@
 ## Docker基础
-###1，安装Docker
+### 1，安装Docker
 ```bash
 yum -y update                                         --更新 yum 源到最新
 
@@ -20,7 +20,7 @@ systemctl start docker.service                        --立即启动 docker 服�
 
 systemctl enable docker.service                       --设置 docker 开机服务启动
 ```
-###2，Docker配置和使用
+### 2，Docker配置和使用
 ```bash
 docker info                                           --查看 docker 相关信息
 
@@ -76,7 +76,7 @@ docker tag zookeeper:3.5 test/zookeeper:3.5           --为镜像 zookeeper 打�
 
 git push test/zookeeper:3.5                           --将zookeeper 镜像上传到仓库<:3.5是镜像版本>
 ```
-###4，Dockerfile使用
+### 3，Dockerfile使用
 ```bash
 touch Dockerfile                                      --创建Dockerfile文件
 vi Dockerfile                                         --编辑文件
@@ -91,7 +91,7 @@ docker build -t '镜像名称' '镜像完成后所在目录'       --创建镜�
 
 Supervisor docker                                     --可存储密码，以及同时使用多个进程以及开启后台进程 <具体可 百度>
 ```
-####5，Volume存储使用
+#### 4，Volume存储使用
 ```bash
 docker run --rm=true -it -v /storage /leader javad /bin/bash                          --将本机目录 /storage 挂载到 javad 容器的 /bin/bash目录 <注意：容器删除目录还在>
 docker run --rm=true --privileged=true -it -v /storage /leader javad /bin/bash        --和上面的命令一样只是加了 --privileged=true 可将多个镜像挂载到同一个目录，已达到文件共享
@@ -100,7 +100,7 @@ docker run --rm=true --link=127.0.0.1:myserver -it javad /bin/bash              
 docker run --rm=true --net=container:mysqlserver javad ip addr                        --容器共享同一个网络《mysqlserver=容器名称》，可用于多个服务使用同一个网络
 docker inspect '容器ID'                                                               --查看文件所写的真实目录 《可直接在看到的目录下写数据》
 ```
-###6，Docker 路由机制打通网络《比较高效推荐使用》	《现在两个docker镜像128,130》
+### 5，Docker 路由机制打通网络《比较高效推荐使用》	《现在两个docker镜像128,130》
 ```bash
 修改128镜像：
     vi /usr/lib/systemd/system/docker.service
@@ -116,7 +116,7 @@ docker inspect '容器ID'                                                       
 
 注：有时间看看 docker + open vSwitch 打通网络
 ```
-###7，Docker-Compose<半个容器编排，还是用 k8s 吧> 可以在容器中直接使用 service 名称 代替 IP，相互访问容器里面的 service；使用如下
+### 6，Docker-Compose<半个容器编排，还是用 k8s 吧> 可以在容器中直接使用 service 名称 代替 IP，相互访问容器里面的 service；使用如下
 ```bash
 1，定义 docker-compose.yml 内容如下：
     version: '3'                                     -- docker compose 版本
@@ -142,7 +142,7 @@ docker inspect '容器ID'                                                       
 		  
 2，docker-compose up -d                        -- 后台运行 docker-compose
 ```
-###8，附录
+### 7，附录
 ```bash
 netstat -nlpt                                         --查看所有端口映射情况
 netstat -nlpt |grep 3306                              --查看3306端口使用情况
@@ -150,13 +150,13 @@ service mysqld stop                                   --停止名叫 mysqld 的�
 mysql -uroot -p                                       --centos7 使用mysql
 env                                                   --centos7 查看环境变量
 ```
-###9，删除Docker
+### 8，删除Docker
 ```bash
 yum list installed | grep docker                      --列出 docker 安装的软件包
 yum -y remove '安装的软件包名'                        --卸载 docker 
 rm -rf /var/lib/docker                                --删除 docker 镜像、容器，卷组和用户自配置文件。
 ```
-###10，说明
+### 9，说明
 ```bash
 docker 默认支持互通，可通过 -icc=false 关闭互通。《/usr/bin/docker daemon --icc=false》
 私有库搭建可使用：https://github.com/goharbor/harbor/releases	
